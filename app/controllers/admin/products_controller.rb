@@ -3,7 +3,11 @@ class Admin::ProductsController < AdminController
 
   # GET /admin/products or /admin/products.json
   def index
-    @admin_products = Product.all
+    if params[:query].present?
+      @pagy, @admin_products = pagy(Product.where("name LIKE ?", "%#{params[:query]}%"))
+    else
+      @pagy, @admin_products = pagy(Product.all)
+    end
   end
 
   # GET /admin/products/1 or /admin/products/1.json
@@ -36,14 +40,16 @@ class Admin::ProductsController < AdminController
 
   # PATCH/PUT /admin/products/1 or /admin/products/1.json
   def update
-    respond_to do |format|
-      if @admin_product.update(admin_product_params)
-        format.html { redirect_to admin_product_url(@admin_product), notice: "Product was successfully updated." }
-        format.json { render :show, status: :ok, location: @admin_product }
-      else
-        format.html { render :edit, status: :unprocessable_entity }
-        format.json { render json: @admin_product.errors, status: :unprocessable_entity }
+    @admin_product = Product.find(params[:id])
+    if @admin_product.update(admin_product_params.reject { |k| k["images"] })
+      if admin_product_params["images"]
+        admin_product_params["images"].each do |image|
+          @admin_product.images.attach(image)
+        end
       end
+      redirect_to admin_products_path, notice: "Product updated successfully"
+    else
+      render :edit, status: :unprocessable_entity
     end
   end
 
